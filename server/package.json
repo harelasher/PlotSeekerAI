@@ -1,0 +1,20 @@
+{
+  "name": "plotseeker-server",
+  "version": "1.0.0",
+  "description": "PlotSeekerAI backend — RAG-powered book search API",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "openai": "^4.70.0",
+    "pg": "^8.13.0",
+    "pgvector": "^0.2.0",
+    "uuid": "^10.0.0"
+  }
+}
