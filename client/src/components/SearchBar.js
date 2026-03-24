@@ -54,7 +54,7 @@ export function setSearchLoading(isLoading) {
   }
 }
 
-/**
+/** 
  * Clear the search input.
  */
 export function clearSearchInput() {
