@@ -1,27 +1,49 @@
 /**
- * Header component — top bar with logo, Browse, Profile
+ * Header component — top bar with logo, Browse, Categories
  */
-export function renderHeader(onLogoClick) {
+export function renderHeader(onLogoClick, onBrowseClick, onCategoryClick) {
   const header = document.createElement('header');
   header.className = 'header';
+
+  const categories = [
+    'Trending Now', 'Just Announced', 'Self Improvement', 
+    'Science Fiction', 'Mystery & Thriller', 'Historical Fiction', 'Fantasy Epics'
+  ];
+
+  let catHtml = categories.map(c => `<a class="dropdown-item" href="#" data-id="${encodeURIComponent(c)}">${c}</a>`).join('');
+
   header.innerHTML = `
     <div class="header-logo" id="header-logo">
       <div class="header-logo-icon">P</div>
       <span class="header-logo-text">PlotSeekerAI</span>
     </div>
     <nav class="header-nav">
-      <a class="header-nav-link" id="nav-browse">Browse</a>
-      <div class="header-profile" id="nav-profile" title="Profile">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
-        </svg>
+      <a class="header-nav-link" href="#" id="nav-browse">Browse</a>
+      <div class="header-dropdown" id="nav-categories">
+        <a class="header-nav-link" href="#">Categories <span style="font-size:0.8em">▼</span></a>
+        <div class="dropdown-content">
+          ${catHtml}
+        </div>
       </div>
     </nav>
   `;
 
-  header.querySelector('#header-logo').addEventListener('click', () => {
+  header.querySelector('#header-logo').addEventListener('click', (e) => {
+    e.preventDefault();
     if (onLogoClick) onLogoClick();
+  });
+
+  header.querySelector('#nav-browse').addEventListener('click', (e) => {
+    e.preventDefault();
+    if (onBrowseClick) onBrowseClick();
+  });
+
+  header.querySelectorAll('.dropdown-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      const cat = decodeURIComponent(e.currentTarget.dataset.id);
+      if (onCategoryClick) onCategoryClick(cat);
+    });
   });
 
   return header;

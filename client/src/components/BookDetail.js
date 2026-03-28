@@ -20,10 +20,29 @@ export async function renderBookDetail(bookData, onBack) {
     }
   }
 
+  const formatPublishedDate = (dateStr) => {
+    if (!dateStr) return null;
+    const parts = dateStr.split('-');
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    if (parts.length >= 2) {
+      const monthIndex = parseInt(parts[1], 10) - 1;
+      return (monthIndex >= 0 && monthIndex < 12) ? `${months[monthIndex]} ${parts[0]}` : parts[0];
+    }
+    return dateStr; // YYYY or format without dashes
+  };
+
   const metaTags = [];
-  if (book.publishedDate) metaTags.push(book.publishedDate);
+  if (book.publishedDate) {
+    const formattedDate = formatPublishedDate(book.publishedDate);
+    if (formattedDate) metaTags.push(formattedDate);
+  }
   if (book.pageCount) metaTags.push(`${book.pageCount} pages`);
-  if (book.averageRating) metaTags.push(`⭐ ${book.averageRating}`);
+  if (book.averageRating) {
+    const rating = parseFloat(book.averageRating);
+    if (!isNaN(rating) && rating > 0) {
+      metaTags.push(`⭐ ${rating.toFixed(1)}`);
+    }
+  }
   if (book.categories?.length) metaTags.push(...book.categories.slice(0, 2));
 
   container.innerHTML = `

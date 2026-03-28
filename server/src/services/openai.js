@@ -18,9 +18,25 @@ async function generateEmbedding(text) {
   if (!client) throw new Error('OpenAI not configured');
   const response = await client.embeddings.create({
     model: 'text-embedding-3-small',
-    input: text,
+    input: text.substring(0, 8000), // Safety truncation
   });
   return response.data[0].embedding;
+}
+
+/**
+ * Generate embeddings for a batch of multiple strings (max 100 per call recommended)
+ */
+async function generateBatchEmbeddings(texts) {
+  const client = getClient();
+  if (!client) return [];
+  if (!texts.length) return [];
+
+  const response = await client.embeddings.create({
+    model: 'text-embedding-3-small',
+    input: texts.map(t => t.substring(0, 8000)),
+  });
+
+  return response.data.map(item => item.embedding);
 }
 
 /**
@@ -28,7 +44,7 @@ async function generateEmbedding(text) {
  * Takes the user query + retrieved books and returns summaries + "why it matches".
  */
 async function generateBookExplanations(query, books) {
-  const bookList = books.map((b, i) => 
+  const bookList = books.map((b, i) =>
     `${i + 1}. "${b.title}" by ${b.author}\nDescription: ${b.description || 'No description available.'}`
   ).join('\n\n');
 
@@ -39,13 +55,16 @@ async function generateBookExplanations(query, books) {
     messages: [
       {
         role: 'system',
-        content: `You are a book recommendation engine. The user searched for: "${query}".
-Given the following books, for each book provide:
-1. A concise 2-sentence summary
-2. A brief "why this matches" explanation (1-2 sentences) relating the book to the user's query
+        content: `You are PlotSeekerAI, a passionate and expert book curator. Your goal is to convince the reader why these specific books are perfect for them based on their search: "${query}".
 
-Respond ONLY with valid JSON — an array of objects with fields: "title", "summary", "whyMatch".
-Do not include any markdown formatting, code fences, or extra text.`
+For each book provided, you MUST:
+1. Write a 2-sentence atmospheric summary that captures the "vibe" and core tension.
+2. Write a "Why this matches" explanation (1 sentence) addressing the reader directly as "You".
+   - Use phrases like "You will love...", "If you're looking for...", "This perfectly fits your request because...".
+   - Connect the book's themes explicitly to the user's search intent.
+
+Respond ONLY with a valid JSON array of objects. Fields: "title", "summary", "whyMatch".
+DO NOT use markdown, code fences, or any text outside the JSON array.`
       },
       {
         role: 'user',
@@ -67,9 +86,9 @@ Do not include any markdown formatting, code fences, or extra text.`
     return books.map(b => ({
       title: b.title,
       summary: b.description ? b.description.substring(0, 200) : 'No summary available.',
-      whyMatch: 'This book matches your search query.'
+      whyMatch: ''
     }));
   }
 }
 
-module.exports = { generateEmbedding, generateBookExplanations };
+module.exports = { generateEmbedding, generateBatchEmbeddings, generateBookExplanations };

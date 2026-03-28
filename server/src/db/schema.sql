@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS books (
   isbn TEXT UNIQUE,
   info_link TEXT,
   embedding vector(1536),
+  average_rating FLOAT DEFAULT 0,
+  ratings_count INT DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
