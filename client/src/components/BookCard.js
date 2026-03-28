@@ -42,7 +42,7 @@ export function renderResultCard(book, { onLike, onDislike, onClick }) {
       <div class="result-card-title">${book.title}</div>
       <div class="result-card-author">by ${book.author || 'Unknown'}</div>
       <div class="result-card-summary">${book.summary || ''}</div>
-      <div class="result-card-match">${book.whyMatch || ''}</div>
+      ${book.whyMatch ? `<div class="result-card-match">${book.whyMatch}</div>` : ''}
       <div class="result-card-actions">
         <button class="btn-thumb btn-like" title="Like this recommendation" data-action="like">👍</button>
         <button class="btn-thumb btn-dislike" title="Not interested" data-action="dislike">👎</button>
