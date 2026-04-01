@@ -1,48 +1,37 @@
-# 🗺️ PlotSeekerAI Roadmap
+# PlotSeekerAI Project Roadmap 🚀
 
-Use this file to track the evolution of PlotSeekerAI. Jot down new ideas, track annoying bugs, and keep a history of what we've accomplished.
+This roadmap outlines the remaining technical requirements, feature requests, and known bugs for the PlotSeekerAI discovery platform.
+
+## 🏁 Phase 1: Data Mastery (Current Focus)
+- [ ] **Full Vectorization (44,000 Books)**  
+  - [ ] Run `embed_to_csv.js` to completion (current script is resumable).
+  - [ ] Develop `sync_embeddings.js` to perform a high-speed Batch UPDATE on the PostgreSQL `embedding` column from the CSV file.
+- [ ] **Metadata Enrichment**  
+  - [ ] Implement a fallback to fetch missing "page_count" or "publisher" data from the OpenLibrary API if Google Books fails.
+- [ ] **Fix 503 API Errors**  
+  - [ ] Implement Exponential Backoff (retries) in `bookSources.js` to handle Google Books API service-unavailable responses.
+
+## 🧠 Phase 2: AI & Search Optimization
+- [ ] **Hybrid Search Refinement**  
+  - [ ] Implement query expansion: If a user types "Sad books", automatically expand the vector search to also look for "Melancholy", "Emotional", and "Tragic".
+- [ ] **Advanced Semantic Caching**  
+  - [ ] Update `search_cache` to store not just the embedding, but also the "Top 5 Result IDs" to bypass the vector search entirely for 100% exact query matches.
+- [ ] **Prompt Engineering**  
+  - [ ] Fine-tune the "Why it matches" GPT-4 prompts to be more concise and "vibe-oriented".
+
+## 🎨 Phase 3: Frontend & User Experience
+- [ ] **Infinite Scroll**  
+  - [ ] Implement an IntersectionObserver in the React frontend to load more results seamlessly as the user scrolls.
+- [ ] **Vibe Tags/Filters**  
+  - [ ] Add UI chips for popular semantic filters (e.g., "Dark Academia", "Cozy Mystery", "Hard Sci-Fi") that trigger pre-calculated vector searches.
+- [ ] **Book Detail Modal**  
+  - [ ] create a high-performance modal page that shows the full description, series information, and awards without a full page reload.
+
+## 🐛 Known Bugs & Challenges
+- **[BUG] Search Cache Mismatch**: Some old cache entries might still have the `isbn` format. Need to add a migration script to clear `search_cache` table one last time.
+- **[CHALLENGE] Empty Descriptions**: Books missing descriptions in the CSV cannot be embedded. They currently appear in "Type-to-search" but not "Vibe search". 
+- **[BUG] ID Format Edge-cases**: Some "ASINs" in the CSV might be 11 characters instead of 10. Need to verify regex in `insert_books.js` for 100% accuracy.
+- **[PERFORMANCE] Parallel OpenAI Calls**: Need to ensure `generateBatchEmbeddings` doesn't hit OpenAI's rate limit for 50,000 books during the initial run.
 
 ---
-
-## 🚀🐛 Feature Ideas & Known Bugs and Fixes
-
-*Current issues needing attention.*
-
-- [ ] **Trending now:** make sure this section works; it's based on popularity and rating_count, doesn't need to be updated every refresh, daily is fine.
-- [ ] **Just announced:** those books needs to be published within the maximum of 1 month. also will show first based on populariy. doesn't need to be updated every refresh, daily is fine.
-- [ ] **header**:
-
-  1. Categories: when hovering over it and trying to get to a category, the slide down might go away very quickly - can't disappear so the user can click on a suggestedcategory. also, making the design of the suggested categories look like the category. for ex: the trending now category can have fire emojis on the side, and the science fiction's border be the color purple and with alien spaceships.
-  2. make the p of logo's website centered
-  3. when scrolling down, add a little transition that makes the header thinner. and when scrolling all the way back up make it go larger until reaching the starting size.
-- [ ] **Search box**:
-
-1. make the little icon on the left aligned and centered.
-2. when typing alot of words the box need to have a transition that expends the box a bit so you can see 3 sentences, just like the chatGPT text box.
-
-* [ ] Google Books API error: Request failed with status code 429
-* [ ] when searching in the search box a book, it needs to search first in the database if there is a relevent book so it wont just search in the api over and over. however, if there aren't any results that satisfies the user requests, it should ask for books that are relevent from the user request from the api and save it in the database so there won't be any need to search in the api again.
-* [ ] inside the book design: make it look better, make the buy on amazon button work
-
----
-
-## 🧠 Project Thoughts & Logic
-
-*Architectural notes and brainstorms.*
-
-- **Seeded JIT Strategy**: Our current strategy of seeding top books and harvesting new ones during search is working well. Should we increase the initial seed to 2,000 books?
-- **Vector Tuning**: Currently using `vector_cosine_ops`. Should we experiment with Manhattan or Euclidean distance to see if relevance changes?
-- **Just Announced Ranking**: The "Popularity" sort in the weekly code is great, but maybe we should prioritize "Release Date" strictly for the first 5 slots?
-
----
-
-## ✅ Completed Tasks
-
-*A history of what we've built.*
-
-- [X] Initial Hybrid Search (Semantic + Popularity) - **2026-03-24**
-- [X] Seeded JIT Architecture implementation - **2026-03-28**
-- [X] Date-accurate "Just Announced" Weekly Cache - **2026-03-28**
-- [X] User-driven "Trending Now" Click Tracking - **2026-03-28**
-- [X] Advanced 800-Book Seed Script - **2026-03-28**
-- [X] 1-Decimal Star Rating Formatting - **2026-03-28**
+*Last Updated: 2026-04-01*

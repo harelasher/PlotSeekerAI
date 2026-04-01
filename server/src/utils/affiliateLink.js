@@ -3,9 +3,10 @@
  */
 function generateAffiliateLink(book) {
   const tag = process.env.AMAZON_AFFILIATE_TAG || 'YOUR_AFFILIATE_TAG';
+  const isbnOrAsin = book.id || book.isbn;
   
-  if (book.isbn) {
-    return `https://www.amazon.com/dp/${book.isbn}?tag=${tag}`;
+  if (isbnOrAsin && /^[a-zA-Z0-9]+$/.test(isbnOrAsin) && (isbnOrAsin.length === 10 || isbnOrAsin.length === 13)) {
+    return `https://www.amazon.com/dp/${isbnOrAsin}?tag=${tag}`;
   }
   
   // Fallback: search by title + author

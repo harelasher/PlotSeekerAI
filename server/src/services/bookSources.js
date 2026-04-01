@@ -1,59 +1,73 @@
 const axios = require('axios');
+const { generateBatchEmbeddings } = require('./openai');
 
 const GOOGLE_BOOKS_API = 'https://www.googleapis.com/books/v1/volumes';
 
 /**
  * Search Google Books API and normalize results.
+ * [DISABLED] Google API calls are commented out — using DB-only mode.
  */
 async function searchGoogleBooks(query, maxResults = 12, orderBy = 'relevance') {
-  try {
-    const fetchLimit = Math.max(maxResults, 40);
-    const response = await axios.get(GOOGLE_BOOKS_API, {
-      params: {
-        q: query,
-        maxResults: fetchLimit,
-        printType: 'books',
-        langRestrict: 'en',
-        orderBy: orderBy,
-      },
-    });
-
-    if (!response.data.items) return [];
-
-    return response.data.items.map((item, index) => {
-      const info = item.volumeInfo;
-      const isbn = info.industryIdentifiers?.find(id => id.type === 'ISBN_13')?.identifier
-        || info.industryIdentifiers?.find(id => id.type === 'ISBN_10')?.identifier
-        || null;
-
-      return {
-        id: item.id,
-        title: info.title || null,
-        author: info.authors?.join(', ') || null,
-        description: info.description || info.subtitle || null,
-        coverImage: info.imageLinks?.thumbnail?.replace('http:', 'https:')
-          || info.imageLinks?.smallThumbnail?.replace('http:', 'https:')
-          || null,
-        isbn,
-        infoLink: info.infoLink || null,
-        publishedDate: info.publishedDate || null,
-        categories: info.categories || [],
-        pageCount: info.pageCount || null,
-        averageRating: info.averageRating || 0,
-        ratingsCount: info.ratingsCount || 0,
-        _relevanceIndex: index,
-      };
-    })
-      .filter(book =>
-        book.coverImage &&
-        book.title &&
-        book.author &&
-        book.description && book.description.trim().length > 10
-      );
-  } catch (error) {
-    console.error('Google Books API error:', error.message);
-    return [];
-  }
+  // const fetchLimit = Math.max(maxResults, 40);
+  // let attempts = 3;
+  // 
+  // while (attempts > 0) {
+  //   try {
+  //     const response = await axios.get(GOOGLE_BOOKS_API, {
+  //       params: {
+  //         q: query,
+  //         maxResults: fetchLimit,
+  //         printType: 'books',
+  //         langRestrict: 'en',
+  //         orderBy: orderBy,
+  //         key: process.env.GOOGLE_BOOKS_API_KEY,
+  //       },
+  //     });
+  //
+  //     if (!response.data.items) return [];
+  //     
+  //     const normalized = response.data.items.map((item, index) => {
+  //       const info = item.volumeInfo;
+  //       const isbn = info.industryIdentifiers?.find(id => id.type === 'ISBN_13')?.identifier
+  //         || info.industryIdentifiers?.find(id => id.type === 'ISBN_10')?.identifier
+  //         || null;
+  //
+  //       return {
+  //         id: item.id,
+  //         title: info.title || null,
+  //         author: info.authors?.join(', ') || null,
+  //         description: info.description || info.subtitle || null,
+  //         coverImage: info.imageLinks?.thumbnail?.replace('http:', 'https:')
+  //           || info.imageLinks?.smallThumbnail?.replace('http:', 'https:')
+  //           || null,
+  //         isbn,
+  //         infoLink: info.infoLink || null,
+  //         publishedDate: info.publishedDate || null,
+  //         categories: info.categories || [],
+  //         pageCount: info.pageCount || null,
+  //         averageRating: info.averageRating || 0,
+  //         ratingsCount: info.ratingsCount || 0,
+  //         _relevanceIndex: index,
+  //       };
+  //     });
+  //
+  //     return normalized.filter(book =>
+  //       book.coverImage &&
+  //       book.title &&
+  //       book.author &&
+  //       book.description && book.description.trim().length > 10 &&
+  //       book.publishedDate &&
+  //       book.categories && book.categories.length > 0 &&
+  //       book.pageCount
+  //     );
+  //   } catch (error) {
+  //     attempts--;
+  //     console.error(`Google Books API attempt failed (${3 - attempts}/3):`, error.message);
+  //     if (attempts === 0) return [];
+  //     await new Promise(r => setTimeout(r, 1000));
+  //   }
+  // }
+  return [];
 }
 
 /**
@@ -80,278 +94,235 @@ function rankBooks(books, mode = 'hybrid', poolSize = 40) {
 
 /**
  * Get a specific book by its Google Books volume ID.
+ * [DISABLED] Google API calls are commented out — using DB-only mode.
  */
 async function getGoogleBookById(volumeId) {
-  try {
-    const response = await axios.get(`${GOOGLE_BOOKS_API}/${volumeId}`);
-    const info = response.data.volumeInfo;
-    const isbn = info.industryIdentifiers?.find(id => id.type === 'ISBN_13')?.identifier
-      || info.industryIdentifiers?.find(id => id.type === 'ISBN_10')?.identifier
-      || null;
-
-    return {
-      id: response.data.id,
-      title: info.title || 'Unknown Title',
-      author: info.authors?.join(', ') || 'Unknown Author',
-      description: info.description || '',
-      coverImage: info.imageLinks?.large?.replace('http:', 'https:')
-        || info.imageLinks?.medium?.replace('http:', 'https:')
-        || info.imageLinks?.thumbnail?.replace('http:', 'https:')
-        || null,
-      isbn,
-      infoLink: info.infoLink || null,
-      publishedDate: info.publishedDate || null,
-      categories: info.categories || [],
-      pageCount: info.pageCount || null,
-      averageRating: info.averageRating || 0,
-      ratingsCount: info.ratingsCount || 0,
-      publisher: info.publisher || null,
-    };
-  } catch (error) {
-    console.error('Google Books get by ID error:', error.message);
-    return null;
-  }
+  // try {
+  //   const response = await axios.get(`${GOOGLE_BOOKS_API}/${volumeId}`, {
+  //     params: {
+  //       key: process.env.GOOGLE_BOOKS_API_KEY,
+  //     },
+  //   });
+  //   const info = response.data.volumeInfo;
+  //   const isbn = info.industryIdentifiers?.find(id => id.type === 'ISBN_13')?.identifier
+  //     || info.industryIdentifiers?.find(id => id.type === 'ISBN_10')?.identifier
+  //     || null;
+  //
+  //   return {
+  //     id: response.data.id,
+  //     title: info.title || 'Unknown Title',
+  //     author: info.authors?.join(', ') || 'Unknown Author',
+  //     description: info.description || '',
+  //     coverImage: info.imageLinks?.large?.replace('http:', 'https:')
+  //       || info.imageLinks?.medium?.replace('http:', 'https:')
+  //       || info.imageLinks?.thumbnail?.replace('http:', 'https:')
+  //       || null,
+  //     isbn,
+  //     infoLink: info.infoLink || null,
+  //     publishedDate: info.publishedDate || null,
+  //     categories: info.categories || [],
+  //     pageCount: info.pageCount || null,
+  //     averageRating: info.averageRating || 0,
+  //     ratingsCount: info.ratingsCount || 0,
+  //     publisher: info.publisher || null,
+  //   };
+  // } catch (error) {
+  //   console.error('Google Books get by ID error:', error.message);
+  //   return null;
+  // }
+  return null;
 }
 
-let featuredBooksCache = null;
-let lastFeaturedFetch = 0;
-const CACHE_TTL_MS = 1000 * 60 * 60; // 1 Hour for general sections
-
-let justAnnouncedCache = null;
-let lastJustAnnouncedFetch = 0;
-const JUST_ANNOUNCED_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 Days
-
 /**
- * Fetch strictly recent books (last 30 days) for the Just Announced section.
- * This has its own weekly cache separate from the homepage sections.
+ * Fetch recent books for the Just Announced section.
+ * [DISABLED] Google API calls are commented out — returns empty array.
+ * TODO: Re-enable once Google API is stable or build a DB-only version.
  */
-async function fetchJustAnnouncedBooks() {
-  if (justAnnouncedCache && (Date.now() - lastJustAnnouncedFetch < JUST_ANNOUNCED_CACHE_TTL_MS)) {
-    return justAnnouncedCache;
-  }
-
-  const now = new Date();
-  const oneMonthAgo = new Date(now);
-  oneMonthAgo.setMonth(now.getMonth() - 1);
-
-  // Build a date-range query that Google Books API actually understands
-  // Format: YYYY-MM-DD
-  const formatDate = (d) => d.toISOString().split('T')[0];
-  const afterDate = formatDate(oneMonthAgo);
-
-  // Query Google with date constraints built into the query string
-  const genreQueries = [
-    `subject:fiction+after:${afterDate}`,
-    `subject:fantasy+after:${afterDate}`,
-    `subject:thriller+after:${afterDate}`,
-    `subject:romance+after:${afterDate}`,
-  ];
-
-  let pool = [];
-  for (const q of genreQueries) {
-    const results = await searchGoogleBooks(q, 40, 'newest');
-    pool.push(...results);
-    await new Promise(r => setTimeout(r, 150));
-  }
-
-  // Deduplicate by book ID
-  const uniquePool = Array.from(new Map(pool.map(b => [b.id, b])).values());
-
-  // Strictly filter to only the past 1 month — no exceptions, no fallback to older books
-  const strictly = uniquePool.filter(book => {
-    if (!book.publishedDate) return false;
-    let dateStr = String(book.publishedDate);
-    // Handle bare year (e.g. "2023") → treat as Jan 1st of that year
-    if (/^\d{4}$/.test(dateStr)) dateStr = `${dateStr}-01-01`;
-    // Handle year-month (e.g. "2024-03") → treat as 1st of that month
-    if (/^\d{4}-\d{2}$/.test(dateStr)) dateStr = `${dateStr}-01`;
-    const pDate = new Date(dateStr);
-    if (isNaN(pDate.getTime())) return false;
-    // Must be within the last 30 days only
-    return pDate >= oneMonthAgo && pDate <= now;
-  });
-
-  // Sort by popularity within the date window
-  const books = rankBooks(strictly, 'popularity', uniquePool.length).slice(0, 15);
-
-  if (books.length > 0) {
-    justAnnouncedCache = books;
-    lastJustAnnouncedFetch = Date.now();
-  }
-
-  return books;
+async function AnnouncedBooks() {
+  // const now = new Date();
+  // const threeMonthsAgo = new Date();
+  // threeMonthsAgo.setMonth(now.getMonth() - 3);
+  // const sixMonthsAgo = new Date();
+  // sixMonthsAgo.setMonth(now.getMonth() - 6);
+  //
+  // const genres = ['fiction', 'fantasy', 'thriller', 'romance', 'mystery', 'horror'];
+  // let pool = [];
+  //
+  // for (const genre of genres) {
+  //   const results = await searchGoogleBooks(`subject:${genre}`, 40, 'newest');
+  //   pool.push(...results);
+  //   await new Promise(r => setTimeout(r, 200)); 
+  // }
+  //
+  // const uniquePool = Array.from(new Map(pool.map(b => [b.id, b])).values());
+  // const strictlySorted = uniquePool.sort((a, b) => {
+  //   const dateA = new Date(a.publishedDate || '1900-01-01');
+  //   const dateB = new Date(b.publishedDate || '1900-01-01');
+  //   return dateB - dateA;
+  // });
+  //
+  // let results = strictlySorted.filter(book => {
+  //   const pDate = new Date(book.publishedDate);
+  //   return !isNaN(pDate.getTime()) && pDate >= threeMonthsAgo;
+  // });
+  //
+  // if (results.length < 5) {
+  //   const oneYearAgo = new Date();
+  //   oneYearAgo.setFullYear(now.getFullYear() - 1);
+  //   results = strictlySorted.filter(book => {
+  //     const pDate = new Date(book.publishedDate);
+  //     return !isNaN(pDate.getTime()) && pDate >= oneYearAgo;
+  //   });
+  // }
+  //
+  // if (results.length < 5) {
+  //   results = strictlySorted.slice(0, 15);
+  // }
+  //
+  // return rankBooks(results, 'popularity', uniquePool.length).slice(0, 15);
+  return [];
 }
 
 /**
- * Get featured/trending books for the homepage with Server-Side caching.
+ * Get featured/trending books for the homepage.
+ * DB-only mode: Returns trending books from the database.
  */
 async function getFeaturedBooks() {
-  // If we have a fresh cache, immediately return it (0ms response time!)
-  if (featuredBooksCache && (Date.now() - lastFeaturedFetch < CACHE_TTL_MS)) {
-    return featuredBooksCache;
-  }
-  const categories = [
-    { name: 'Trending Now', query: 'subject:fiction', orderBy: 'newest' },
-    { name: 'Just Announced', query: 'subject:fantasy', orderBy: 'newest' },
-    { name: 'Self Improvement', query: 'subject:"Self-Help"' },
-    { name: 'Science Fiction', query: 'subject:"Science Fiction"' },
-    { name: 'Mystery & Thriller', query: 'subject:"Thriller"' },
-    { name: 'Historical Fiction', query: 'subject:"Historical Fiction"' },
-    { name: 'Fantasy Epics', query: 'subject:"Fantasy"' },
-  ];
+  const { 
+    getPersistedFeaturedSections, 
+    isDatabaseAvailable, 
+    searchTrendingBooks 
+  } = require('./database');
 
-  const { searchTrendingBooks, isDatabaseAvailable } = require('./database');
-  const sections = [];
+  // 1. Try to get persisted sections from Database
+  if (isDatabaseAvailable()) {
+    const persisted = await getPersistedFeaturedSections();
+    if (persisted && persisted.length > 0) {
+      const order = [
+        'Trending Now', 
+        'Just Announced', 
+        'Self Improvement', 
+        'Science Fiction', 
+        'Mystery & Thriller', 
+        'Historical Fiction', 
+        'Fantasy Epics'
+      ];
 
-  // Calculate the acceptable date range for "Just Announced" (Current Month +- 1 month)
-  const now = new Date();
-  const oneMonthAgo = new Date(); oneMonthAgo.setMonth(now.getMonth() - 1);
-  const oneMonthFuture = new Date(); oneMonthFuture.setMonth(now.getMonth() + 1);
-
-  // Calculate date range for "Trending Now" (Last 6 months) fallback
-  const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(now.getMonth() - 6);
-
-  for (const cat of categories) {
-    let books = [];
-
-    if (cat.name === 'Trending Now') {
-      // Priority: Database Click Trends
-      if (isDatabaseAvailable()) {
-        books = await searchTrendingBooks(15);
-      }
-      // Fallback: Recent highly rated books from Google
-      if (books.length < 5) {
-        const pool = await searchGoogleBooks(cat.query, 40, 'newest');
-        const recent = pool.filter(book => {
-          if (!book.publishedDate) return false;
-          const pDate = new Date(book.publishedDate);
-          return pDate >= sixMonthsAgo;
-        });
-        const ranked = rankBooks(recent, 'hybrid', 40);
-        books = [...books, ...ranked].slice(0, 15);
-      }
-    } else if (cat.name === 'Just Announced') {
-      // Delegate to the dedicated weekly-cached fetcher
-      books = await fetchJustAnnouncedBooks();
-    } else {
-      const pool = await searchGoogleBooks(cat.query, 15, cat.orderBy || 'relevance');
-      books = rankBooks(pool, 'hybrid', 15);
-    }
-
-    if (books.length > 0) {
-      sections.push({
-        title: cat.name,
-        books,
+      return persisted.sort((a, b) => {
+        const indexA = order.indexOf(a.title);
+        const indexB = order.indexOf(b.title);
+        return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
       });
     }
-    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // 2. No persisted data — build sections from DB trending data only
+    console.log('No persistent featured data found. Building from database...');
+    const trendingBooks = await searchTrendingBooks(15);
+    if (trendingBooks.length > 0) {
+      return [{ title: 'Trending Now', books: trendingBooks }];
+    }
   }
 
-  // Save successful fetch to memory cache
-  if (sections.length > 0) {
-    featuredBooksCache = sections;
-    lastFeaturedFetch = Date.now();
-  }
-
-  return sections;
+  // 3. No data at all — return empty
+  console.log('No featured data available (DB-only mode, no Google API).');
+  return [];
 }
-
-// Pre-warm the cache purely in the background when the server starts!
-// This guarantees the very first immediate page load for a user is already cached.
-setTimeout(() => {
-  getFeaturedBooks().catch(e => console.error('Cache pre-warm failed:', e.message));
-}, 1000);
 
 /**
- * Advanced search that uses Promise.all to bypass the 40 result limit and fetch top X books.
+ * Refresh featured sections. 
+ * DB-only mode: Just refreshes trending from click data.
  */
-async function searchGoogleBooksPaginated(query, totalResults = 50, orderBy = 'relevance') {
-  try {
-    const numRequests = Math.ceil(totalResults / 40) + 1; // Usually 2 requests = 80 books
+async function refreshFeaturedSectionsBackground() {
+  const { saveFeaturedSection, isDatabaseAvailable, searchTrendingBooks } = require('./database');
+  
+  const results = [];
 
-    let startIndex = 0;
-    const allItems = [];
-    for (let i = 0; i < numRequests; i++) {
-      try {
-        const res = await axios.get(GOOGLE_BOOKS_API, {
-          params: {
-            q: query,
-            maxResults: 40,
-            startIndex: startIndex,
-            printType: 'books',
-            langRestrict: 'en',
-            orderBy: orderBy,
-          },
-        });
-        if (res.data && res.data.items) {
-          allItems.push(...res.data.items);
-        }
-      } catch (err) {
-        console.error('Paginated fetch error:', err.message);
-      }
-      startIndex += 40;
-      // Pacing
-      await new Promise(resolve => setTimeout(resolve, 200));
+  if (isDatabaseAvailable()) {
+    // Trending Now — from user clicks in our DB
+    const trendingBooks = await searchTrendingBooks(15);
+    if (trendingBooks.length > 0) {
+      const bookIds = trendingBooks.map(b => b.id);
+      await saveFeaturedSection('Trending Now', bookIds);
+      results.push({ title: 'Trending Now', books: trendingBooks });
     }
 
-    if (allItems.length === 0) return [];
-
-    // Deduplicate by ID
-    const uniqueItems = [];
-    const seenIds = new Set();
-    for (const item of allItems) {
-      if (!seenIds.has(item.id)) {
-        seenIds.add(item.id);
-        uniqueItems.push(item);
-      }
-    }
-
-    return uniqueItems.map((item) => {
-      const info = item.volumeInfo;
-      const isbn = info.industryIdentifiers?.find(id => id.type === 'ISBN_13')?.identifier
-        || info.industryIdentifiers?.find(id => id.type === 'ISBN_10')?.identifier
-        || null;
-
-      return {
-        id: item.id,
-        title: info.title || 'Unknown Title',
-        author: info.authors?.join(', ') || 'Unknown Author',
-        description: info.description || info.subtitle || '',
-        coverImage: info.imageLinks?.thumbnail?.replace('http:', 'https:')
-          || info.imageLinks?.smallThumbnail?.replace('http:', 'https:')
-          || null,
-        isbn,
-        infoLink: info.infoLink || null,
-        publishedDate: info.publishedDate || null,
-        categories: info.categories || [],
-        pageCount: info.pageCount || null,
-        averageRating: info.averageRating || 0,
-        ratingsCount: info.ratingsCount || 0,
-      };
-    })
-      .filter(book =>
-        book.coverImage &&
-        book.title !== 'Unknown Title' &&
-        book.author !== 'Unknown Author' &&
-        book.description.trim().length > 0
-      )
-      .map((book, index) => {
-        // Hybrid scoring
-        const relevanceScore = (100 - index) * 5;
-        const popularityScore = (book.averageRating * book.ratingsCount) * 0.1;
-        return { ...book, _score: relevanceScore + popularityScore };
-      })
-      .sort((a, b) => b._score - a._score)
-      .map(book => {
-        delete book._score;
-        return book;
-      })
-      .slice(0, totalResults);
-
-  } catch (error) {
-    console.error('Google Books Paginated error:', error.message);
-    return [];
+    // [DISABLED] All other sections relied on Google Books API
+    // To re-enable, uncomment the Google API calls and the category loop below:
+    //
+    // const categories = [
+    //   { name: 'Just Announced', query: 'subject:fantasy', orderBy: 'newest' },
+    //   { name: 'Self Improvement', query: 'subject:"Self-Help"' },
+    //   { name: 'Science Fiction', query: 'subject:"Science Fiction"' },
+    //   { name: 'Mystery & Thriller', query: 'subject:"Thriller"' },
+    //   { name: 'Historical Fiction', query: 'subject:"Historical Fiction"' },
+    //   { name: 'Fantasy Epics', query: 'subject:"Fantasy"' },
+    // ];
+    //
+    // for (const cat of categories) {
+    //   let books = [];
+    //   if (cat.name === 'Just Announced') {
+    //     books = await AnnouncedBooks();
+    //   } else {
+    //     const pool = await searchGoogleBooks(cat.query, 15, cat.orderBy || 'relevance');
+    //     books = rankBooks(pool, 'hybrid', 15);
+    //   }
+    //   if (books.length > 0) {
+    //     try {
+    //       const toStore = books.filter(b => b.description);
+    //       const texts = toStore.map(b => `${b.title} by ${b.author}. ${b.description}`);
+    //       const embeddings = await generateBatchEmbeddings(texts);
+    //       const storeItems = toStore.map((book, i) => ({
+    //         book, embedding: embeddings[i]
+    //       })).filter(item => item.embedding);
+    //       const storedIds = await storeBooksBatch(storeItems);
+    //       if (storedIds.length > 0) {
+    //         await saveFeaturedSection(cat.name, storedIds);
+    //       }
+    //     } catch (err) {
+    //       console.error(`Failed to persist section ${cat.name}:`, err.message);
+    //     }
+    //     results.push({ title: cat.name, books });
+    //   }
+    //   await new Promise(r => setTimeout(r, 500));
+    // }
   }
+
+  console.log(`Scheduler: Background refresh complete. ${results.length} sections updated.`);
+  return results;
 }
 
-module.exports = { searchGoogleBooks, getGoogleBookById, getFeaturedBooks, searchGoogleBooksPaginated };
+/**
+ * Advanced paginated search via Google Books API.
+ * [DISABLED] Google API calls are commented out — returns empty array.
+ */
+async function searchGoogleBooksPaginated(query, totalResults = 50, orderBy = 'relevance') {
+  // try {
+  //   const numRequests = Math.ceil(totalResults / 40) + 1;
+  //   let startIndex = 0;
+  //   const allItems = [];
+  //   for (let i = 0; i < numRequests; i++) {
+  //     try {
+  //       const res = await axios.get(GOOGLE_BOOKS_API, {
+  //         params: {
+  //           q: query, maxResults: 40, startIndex: startIndex,
+  //           printType: 'books', langRestrict: 'en', orderBy: orderBy,
+  //           key: process.env.GOOGLE_BOOKS_API_KEY,
+  //         },
+  //       });
+  //       if (res.data && res.data.items) allItems.push(...res.data.items);
+  //     } catch (err) {
+  //       console.error('Paginated fetch error:', err.message);
+  //     }
+  //     startIndex += 40;
+  //     await new Promise(resolve => setTimeout(resolve, 200));
+  //   }
+  //   if (allItems.length === 0) return [];
+  //   // ... dedup, normalize, filter, rank ...
+  // } catch (error) {
+  //   console.error('Google Books Paginated error:', error.message);
+  //   return [];
+  // }
+  return [];
+}
+
+module.exports = { searchGoogleBooks, getGoogleBookById, getFeaturedBooks, searchGoogleBooksPaginated, refreshFeaturedSectionsBackground, AnnouncedBooks, rankBooks };

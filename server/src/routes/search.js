@@ -1,15 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const { generateEmbedding, generateBatchEmbeddings, generateBookExplanations } = require('../services/openai');
+const { generateEmbedding, generateBookExplanations } = require('../services/openai');
 const { searchGoogleBooks, getGoogleBookById, getFeaturedBooks, searchGoogleBooksPaginated } = require('../services/bookSources');
 const { 
   searchSimilarBooks, 
   searchTrendingBooks, 
   incrementBookClick, 
-  storeBook, 
   storeBooksBatch, 
   getBookById, 
-  isDatabaseAvailable 
+  isDatabaseAvailable,
+  getCachedSearch,
+  saveSearchToCache
 } = require('../services/database');
 const { generateAffiliateLink } = require('../utils/affiliateLink');
 
@@ -29,56 +30,38 @@ router.post('/search', async (req, res, next) => {
     let books = [];
 
     // Step 1: Try vector search if DB is available
-    if (isDatabaseAvailable() && process.env.OPENAI_API_KEY) {
+    if (isDatabaseAvailable()) {
       try {
-        const embedding = await generateEmbedding(query);
-        books = await searchSimilarBooks(embedding, 15);
-      } catch (err) {
-        console.warn('Vector search failed, falling back to API:', err.message);
-      }
-    }
+        // Attempt to retrieve pre-calculated embedding from cache first
+        let embedding = await getCachedSearch(query);
 
-    // Step 2: If not enough results, fetch from Google Books
-    if (books.length < 8) {
-      const apiBooks = await searchGoogleBooks(query, 24); // Aggressive harvesting
-
-      // Merge: avoid duplicates by ISBN/title
-      const existingTitles = new Set(books.map(b => b.title.toLowerCase()));
-      const toStore = [];
-
-      for (const book of apiBooks) {
-        if (!existingTitles.has(book.title.toLowerCase())) {
-          books.push(book);
-          existingTitles.add(book.title.toLowerCase());
-
-          // Queue for batch embedding
-          if (isDatabaseAvailable() && process.env.OPENAI_API_KEY && book.description) {
-            toStore.push(book);
+        // If not found, generate it using AI ONLY if needed
+        if (!embedding && process.env.OPENAI_API_KEY) {
+          embedding = await generateEmbedding(query);
+          if (embedding) {
+            await saveSearchToCache(query, embedding);
           }
         }
-      }
 
-      // Proactively store all newly found books in the database (Batch)
-      if (toStore.length > 0) {
-        // We do this in the background to not block the current search response
-        (async () => {
-          try {
-            console.log(`Harvesting ${toStore.length} new books for query: ${query}`);
-            const texts = toStore.map(b => `${b.title} by ${b.author}. ${b.description}`);
-            const embeddings = await generateBatchEmbeddings(texts);
-            
-            const storeItems = toStore.map((book, i) => ({
-              book,
-              embedding: embeddings[i]
-            })).filter(item => item.embedding);
-
-            await storeBooksBatch(storeItems);
-          } catch (err) {
-            console.warn('Background harvesting failed:', err.message);
-          }
-        })();
+        if (embedding) {
+          books = await searchSimilarBooks(embedding, 15);
+        }
+      } catch (err) {
+        console.warn('Vector cache search failed, falling back to API:', err.message);
       }
     }
+
+    // Step 2: [DISABLED] Google Books API fallback is commented out — DB-only mode
+    // if (books.length < 8) {
+    //   const apiBooks = await searchGoogleBooks(query, 24);
+    //   const existingTitles = new Set(books.map(b => b.title.toLowerCase()));
+    //   for (const book of apiBooks) {
+    //     if (!existingTitles.has(book.title.toLowerCase())) {
+    //       books.push(book);
+    //       existingTitles.add(book.title.toLowerCase());
+    //     }
+    //   }
+    // }
 
     // Step 3: Filter out disliked books
     if (dislikedIds.length > 0) {
@@ -114,7 +97,6 @@ router.post('/search', async (req, res, next) => {
         summary: explanation.summary || (book.description ? book.description.substring(0, 200) : ''),
         whyMatch: explanation.whyMatch || '',
         affiliateLink: generateAffiliateLink(book),
-        isbn: book.isbn,
         publishedDate: book.publishedDate,
         categories: book.categories,
         pageCount: book.pageCount,
@@ -152,12 +134,29 @@ router.get('/books/featured', async (req, res, next) => {
 });
 
 /**
+ * POST /api/books/featured/refresh
+ * Manually trigger a background refresh of featured sections (Admin/Internal use).
+ */
+router.post('/books/featured/refresh', async (req, res, next) => {
+  try {
+    const { refreshFeaturedSectionsBackground } = require('../services/bookSources');
+    // Trigger in background
+    refreshFeaturedSectionsBackground();
+    res.json({ message: 'Background refresh triggered successfully.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /api/books/browse
  * Fetches top 50 popular books.
  */
 router.get('/books/browse', async (req, res, next) => {
   try {
-    const books = await searchGoogleBooksPaginated('subject:fiction OR subject:non-fiction', 50);
+    // [DISABLED] Google API — using DB trending data instead
+    // const books = await searchGoogleBooksPaginated('subject:fiction OR subject:non-fiction', 50);
+    const books = await searchTrendingBooks(50);
     const enrichedBooks = books.map(book => ({
       ...book,
       summary: book.description ? book.description.substring(0, 200) : '',
@@ -192,27 +191,14 @@ router.get('/books/category/:categoryId', async (req, res, next) => {
     
     let books = [];
 
-    if (categoryId === 'Trending Now') {
-      books = await searchTrendingBooks(30);
-    } else if (categoryId === 'Just Announced') {
-      const now = new Date();
-      const oneMonthAgo = new Date(); oneMonthAgo.setMonth(now.getMonth() - 1);
-      const oneMonthFuture = new Date(); oneMonthFuture.setMonth(now.getMonth() + 1);
-
-      const pool = await searchGoogleBooksPaginated(mapping.query, 60, mapping.orderBy);
-      const filtered = pool.filter(book => {
-        if (!book.publishedDate) return false;
-        let dateToTest = String(book.publishedDate);
-        if (/^\d{4}$/.test(dateToTest)) dateToTest = `${dateToTest}-01-01`;
-        const pDate = new Date(dateToTest);
-        return !isNaN(pDate.getTime()) && pDate >= oneMonthAgo && pDate <= oneMonthFuture;
-      });
-      // Import rankBooks from bookSources.js? We need to export it.
-      // For now, simple sort if we don't have rankBooks here
-      books = filtered.sort((a,b) => (b.ratingsCount * b.averageRating) - (a.ratingsCount * a.averageRating));
-    } else {
-      books = await searchGoogleBooksPaginated(mapping.query, 30, mapping.orderBy);
-    }
+    // [DISABLED] Google API — all categories use DB trending data for now
+    // if (categoryId === 'Just Announced') {
+    //   const pool = await searchGoogleBooksPaginated(mapping.query, 60, mapping.orderBy);
+    //   ...
+    // } else {
+    //   books = await searchGoogleBooksPaginated(mapping.query, 30, mapping.orderBy);
+    // }
+    books = await searchTrendingBooks(30);
 
     const enrichedBooks = books.slice(0, 30).map(book => ({
       ...book,
@@ -233,9 +219,8 @@ router.post('/books/:id/click', async (req, res, next) => {
   try {
     const { id } = req.params;
     if (isDatabaseAvailable()) {
-      // If it's a numeric ID, it's our DB ID. 
-      // If it's a string, it might be a Google ID. We only track clicks for books we've stored.
-      if (/^\d+$/.test(id)) {
+      // DB IDs are ASINs (alphanumeric 10) or ISBNs (numeric 10/13).
+      if (/^[a-zA-Z0-9]+$/.test(id) && (id.length === 10 || id.length === 13)) {
         await incrementBookClick(id);
       }
     }
@@ -255,15 +240,15 @@ router.get('/books/:id', async (req, res, next) => {
 
     let book = null;
 
-    // Try DB first, but only if the ID is a valid Postgres integer (Google IDs are mixed strings)
-    if (/^\d+$/.test(id)) {
+    // Try DB first (IDs are ISBNs or ASINs, exactly 10 or 13 length alphanumeric)
+    if (/^[a-zA-Z0-9]+$/.test(id) && (id.length === 10 || id.length === 13)) {
       book = await getBookById(id);
     }
 
-    // Fallback to Google Books API (id might be a Google Books volume ID)
-    if (!book) {
-      book = await getGoogleBookById(id);
-    }
+    // [DISABLED] Google Books API fallback
+    // if (!book) {
+    //   book = await getGoogleBookById(id);
+    // }
 
     if (!book) {
       return res.status(404).json({ error: 'Book not found.' });

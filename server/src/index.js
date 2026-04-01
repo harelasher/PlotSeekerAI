@@ -1,7 +1,9 @@
 require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const searchRoutes = require('./routes/search');
+const { initScheduler } = require('./services/scheduler');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -26,4 +28,6 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`PlotSeekerAI server running on port ${PORT}`);
+  // Start the background refresh scheduler
+  initScheduler();
 });
