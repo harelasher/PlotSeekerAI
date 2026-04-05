@@ -1,6 +1,6 @@
-const API_BASE = window.location.hostname === 'localhost' 
-  ? 'http://localhost:5000/api' 
-  : '/api'; // Assumes monolith or proxy in prod
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:5000/api'
+  : 'https://plotseeker-api.onrender.com/api'; // REPLACEME: Use your actual Render backend URL here!
 const detailsCache = new Map(); // Simple idempotency cache for book details
 
 /**
