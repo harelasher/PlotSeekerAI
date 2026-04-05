@@ -1,3 +1,8 @@
+/**
+ * openai.js
+ * Wrapper service for OpenAI API calls for generating
+ * embeddings and AI search result explanations.
+ */
 const { OpenAI } = require('openai');
 
 let openai = null;
@@ -91,4 +96,46 @@ DO NOT use markdown, code fences, or any text outside the JSON array.`
   }
 }
 
-module.exports = { generateEmbedding, generateBatchEmbeddings, generateBookExplanations };
+/**
+ * Translate a complex natural language "vibe" into 3-5 optimized search keywords.
+ * Essential for hitting external keyword-based APIs (Google Books).
+ */
+async function generateSearchKeywords(vibe) {
+  const client = getClient();
+  if (!client) return vibe; // Fallback to raw vibe
+
+  try {
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a search query optimizer for PlotSeekerAI. 
+          The user has provided a complex "vibe" search description. 
+          Your task is to extract the 3-5 most important, high-impact keywords (nouns/themes) that would help a traditional keyword-based search engine (like Google Books) find these books.
+          
+          Example Input: "parents die in an alleyway and he becomes a superhero"
+          Example Output: orphan superhero vigilante alleyway origins
+          
+          Example Input: "dark moody forest mystery with a sense of impending doom"
+          Example Output: dark forest atmospheric suspense mystery doom
+          
+          Respond ONLY with the keywords separated by spaces. No punctuation or extra text.`
+        },
+        {
+          role: 'user',
+          content: vibe
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 50,
+    });
+
+    return response.choices[0].message.content.trim();
+  } catch (err) {
+    console.error('Failed to generate keywords:', err.message);
+    return vibe;
+  }
+}
+
+module.exports = { generateEmbedding, generateBatchEmbeddings, generateBookExplanations, generateSearchKeywords };

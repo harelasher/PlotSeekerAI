@@ -1,3 +1,5 @@
+import { getBookDetails } from '../api.js';
+
 /**
  * BookCard component — renders a book in grid mode (homepage) or result mode (search)
  */
@@ -19,6 +21,11 @@ export function renderBookCard(book, onClick) {
     </div>
   `;
 
+  // Predictive Pre-fetch on Hover
+  card.addEventListener('mouseenter', () => {
+    getBookDetails(book.id).catch(() => {});
+  }, { once: true });
+
   card.addEventListener('click', () => {
     if (onClick) onClick(book);
   });
@@ -29,48 +36,54 @@ export function renderBookCard(book, onClick) {
 /**
  * Render a result card for search results (cover + title + summary + why match + actions).
  */
-export function renderResultCard(book, { onLike, onDislike, onClick }) {
+export function renderResultCard(book, { onLike, onDislike, onClick, isLegendary, index = 0 }) {
   const card = document.createElement('div');
-  card.className = 'result-card';
+  card.className = `result-card ${isLegendary ? 'legendary-match' : ''}`;
   card.setAttribute('data-book-id', book.id);
+  card.style.setProperty('--index', index);
+
+  // Calculate match levels for the bar (30-50, 51-80, 81-100)
+  const sim = book.similarity || 0;
+  let matchLabel = 'Matching';
+  let levels = 1;
+
+  if (sim >= 0.8) {
+    matchLabel = 'Perfect Match';
+    levels = 3;
+  } else if (sim >= 0.5) {
+    matchLabel = 'High Match';
+    levels = 2;
+  }
+
   card.innerHTML = `
     <div class="result-card-cover">
       <img src="${book.coverImage || ''}" alt="${book.title}" loading="lazy"
         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22150%22%3E%3Crect fill=%22%231a2332%22 width=%22100%22 height=%22150%22/%3E%3Ctext fill=%22%236e7681%22 font-family=%22sans-serif%22 font-size=%2212%22 x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22%3ENo Cover%3C/text%3E%3C/svg%3E'" />
+      ${isLegendary ? '<div class="legendary-badge">Legendary Discovery</div>' : ''}
     </div>
     <div class="result-card-body">
+      <div class="match-score-container">
+        <div class="match-bar" data-levels="${levels}">
+          <div class="match-bar-segment"></div>
+          <div class="match-bar-segment"></div>
+          <div class="match-bar-segment"></div>
+        </div>
+        <span class="match-label">${matchLabel}</span>
+      </div>
       <div class="result-card-title">${book.title}</div>
       <div class="result-card-author">by ${book.author || 'Unknown'}</div>
       <div class="result-card-summary">${book.summary || ''}</div>
-      ${book.whyMatch ? `<div class="result-card-match">${book.whyMatch}</div>` : ''}
-      <div class="result-card-actions">
-        <button class="btn-thumb btn-like" title="Like this recommendation" data-action="like">👍</button>
-        <button class="btn-thumb btn-dislike" title="Not interested" data-action="dislike">👎</button>
-      </div>
     </div>
   `;
 
-  // Click on card body (not buttons) navigates to detail
-  card.addEventListener('click', (e) => {
-    if (e.target.closest('.btn-thumb')) return;
+  // Predictive Pre-fetch on Hover
+  card.addEventListener('mouseenter', () => {
+    getBookDetails(book.id).catch(() => {});
+  }, { once: true });
+
+  // Click on card body navigates to detail
+  card.addEventListener('click', () => {
     if (onClick) onClick(book);
-  });
-
-  const likeBtn = card.querySelector('.btn-like');
-  const dislikeBtn = card.querySelector('.btn-dislike');
-
-  likeBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    likeBtn.classList.toggle('active-like');
-    dislikeBtn.classList.remove('active-dislike');
-    if (onLike) onLike(book);
-  });
-
-  dislikeBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    dislikeBtn.classList.toggle('active-dislike');
-    likeBtn.classList.remove('active-like');
-    if (onDislike) onDislike(book);
   });
 
   return card;
@@ -89,3 +102,4 @@ export function renderBookCardSkeleton() {
   `;
   return card;
 }
+

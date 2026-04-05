@@ -6,7 +6,7 @@ const { refreshFeaturedSectionsBackground } = require('./bookSources');
  */
 function initScheduler() {
   console.log('Scheduler initialized: Checking for stale featured sections...');
-  
+
   // Initial check on boot
   checkAndRefresh();
 
@@ -18,12 +18,15 @@ function initScheduler() {
 
 async function checkAndRefresh() {
   const { getPersistedFeaturedSections, isDatabaseAvailable } = require('./database');
-  
-  if (!isDatabaseAvailable()) return;
+
+  if (!isDatabaseAvailable()) {
+    console.log('Scheduler: Database not available. Skipping check.');
+    return;
+  }
 
   try {
     const persisted = await getPersistedFeaturedSections();
-    
+
     let isStale = true;
     if (persisted && persisted.length > 0) {
       const oldestUpdate = Math.min(...persisted.map(s => new Date(s.updatedAt).getTime()));

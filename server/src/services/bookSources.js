@@ -1,3 +1,8 @@
+/**
+ * bookSources.js
+ * Abstracts external and internal data providers for book featured sections.
+ * Optimized for DB-first retrieval.
+ */
 const axios = require('axios');
 const { generateBatchEmbeddings } = require('./openai');
 
@@ -5,69 +10,58 @@ const GOOGLE_BOOKS_API = 'https://www.googleapis.com/books/v1/volumes';
 
 /**
  * Search Google Books API and normalize results.
- * [DISABLED] Google API calls are commented out — using DB-only mode.
+ * This is used as the broad net for JIT expansion.
  */
-async function searchGoogleBooks(query, maxResults = 12, orderBy = 'relevance') {
-  // const fetchLimit = Math.max(maxResults, 40);
-  // let attempts = 3;
-  // 
-  // while (attempts > 0) {
-  //   try {
-  //     const response = await axios.get(GOOGLE_BOOKS_API, {
-  //       params: {
-  //         q: query,
-  //         maxResults: fetchLimit,
-  //         printType: 'books',
-  //         langRestrict: 'en',
-  //         orderBy: orderBy,
-  //         key: process.env.GOOGLE_BOOKS_API_KEY,
-  //       },
-  //     });
-  //
-  //     if (!response.data.items) return [];
-  //     
-  //     const normalized = response.data.items.map((item, index) => {
-  //       const info = item.volumeInfo;
-  //       const isbn = info.industryIdentifiers?.find(id => id.type === 'ISBN_13')?.identifier
-  //         || info.industryIdentifiers?.find(id => id.type === 'ISBN_10')?.identifier
-  //         || null;
-  //
-  //       return {
-  //         id: item.id,
-  //         title: info.title || null,
-  //         author: info.authors?.join(', ') || null,
-  //         description: info.description || info.subtitle || null,
-  //         coverImage: info.imageLinks?.thumbnail?.replace('http:', 'https:')
-  //           || info.imageLinks?.smallThumbnail?.replace('http:', 'https:')
-  //           || null,
-  //         isbn,
-  //         infoLink: info.infoLink || null,
-  //         publishedDate: info.publishedDate || null,
-  //         categories: info.categories || [],
-  //         pageCount: info.pageCount || null,
-  //         averageRating: info.averageRating || 0,
-  //         ratingsCount: info.ratingsCount || 0,
-  //         _relevanceIndex: index,
-  //       };
-  //     });
-  //
-  //     return normalized.filter(book =>
-  //       book.coverImage &&
-  //       book.title &&
-  //       book.author &&
-  //       book.description && book.description.trim().length > 10 &&
-  //       book.publishedDate &&
-  //       book.categories && book.categories.length > 0 &&
-  //       book.pageCount
-  //     );
-  //   } catch (error) {
-  //     attempts--;
-  //     console.error(`Google Books API attempt failed (${3 - attempts}/3):`, error.message);
-  //     if (attempts === 0) return [];
-  //     await new Promise(r => setTimeout(r, 1000));
-  //   }
-  // }
-  return [];
+async function searchGoogleBooks(query, maxResults = 15, orderBy = 'relevance') {
+  const fetchLimit = Math.max(maxResults, 30);
+  
+  try {
+    const response = await axios.get(GOOGLE_BOOKS_API, {
+      params: {
+        q: query,
+        maxResults: fetchLimit,
+        printType: 'books',
+        langRestrict: 'en',
+        orderBy: orderBy,
+        key: process.env.GOOGLE_BOOKS_API_KEY,
+      },
+    });
+
+    if (!response.data.items) return [];
+    
+    return response.data.items.map((item, index) => {
+      const info = item.volumeInfo;
+      const isbn = info.industryIdentifiers?.find(id => id.type === 'ISBN_13')?.identifier
+        || info.industryIdentifiers?.find(id => id.type === 'ISBN_10')?.identifier
+        || null;
+
+      return {
+        id: item.id,
+        title: info.title || null,
+        author: info.authors?.join(', ') || 'Unknown Author',
+        description: info.description || info.subtitle || '',
+        coverImage: info.imageLinks?.thumbnail?.replace('http:', 'https:')
+          || info.imageLinks?.smallThumbnail?.replace('http:', 'https:')
+          || null,
+        isbn,
+        infoLink: info.infoLink || null,
+        publishedDate: info.publishedDate || null,
+        categories: info.categories || [],
+        pageCount: info.pageCount || null,
+        averageRating: info.averageRating || 0,
+        ratingsCount: info.ratingsCount || 0,
+        _relevanceIndex: index,
+      };
+    }).filter(book => 
+      book.title && 
+      book.description && 
+      book.description.length > 30 &&
+      (book.isbn || book.id)
+    );
+  } catch (error) {
+    console.error(`Google Books API search failed:`, error.message);
+    return [];
+  }
 }
 
 /**
@@ -188,10 +182,10 @@ async function AnnouncedBooks() {
  * DB-only mode: Returns trending books from the database.
  */
 async function getFeaturedBooks() {
-  const { 
-    getPersistedFeaturedSections, 
-    isDatabaseAvailable, 
-    searchTrendingBooks 
+  const {
+    getPersistedFeaturedSections,
+    isDatabaseAvailable,
+    searchTrendingBooks
   } = require('./database');
 
   // 1. Try to get persisted sections from Database
@@ -199,20 +193,22 @@ async function getFeaturedBooks() {
     const persisted = await getPersistedFeaturedSections();
     if (persisted && persisted.length > 0) {
       const order = [
-        'Trending Now', 
-        'Just Announced', 
-        'Self Improvement', 
-        'Science Fiction', 
-        'Mystery & Thriller', 
-        'Historical Fiction', 
+        'Trending Now',
+        /* 'Just Announced', */
+        'Self Improvement',
+        'Science Fiction',
+        'Mystery & Thriller',
+        'Historical Fiction',
         'Fantasy Epics'
       ];
 
-      return persisted.sort((a, b) => {
-        const indexA = order.indexOf(a.title);
-        const indexB = order.indexOf(b.title);
-        return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
-      });
+      return persisted
+        .filter(section => section.title !== 'Just Announced')
+        .sort((a, b) => {
+          const indexA = order.indexOf(a.title);
+          const indexB = order.indexOf(b.title);
+          return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
+        });
     }
 
     // 2. No persisted data — build sections from DB trending data only
@@ -233,61 +229,67 @@ async function getFeaturedBooks() {
  * DB-only mode: Just refreshes trending from click data.
  */
 async function refreshFeaturedSectionsBackground() {
-  const { saveFeaturedSection, isDatabaseAvailable, searchTrendingBooks } = require('./database');
-  
+  const {
+    saveFeaturedSection,
+    isDatabaseAvailable,
+    searchTrendingBooks,
+    getLeastFeaturedBooksByGenre,
+    getRecentlyPublishedBooks
+  } = require('./database');
+
   const results = [];
 
-  if (isDatabaseAvailable()) {
-    // Trending Now — from user clicks in our DB
-    const trendingBooks = await searchTrendingBooks(15);
+  if (!isDatabaseAvailable()) {
+    console.log('Scheduler: Database not available for refresh.');
+    return [];
+  }
+
+  console.log('--- DB-ONLY BACKGROUND REFRESH STARTED ---');
+
+  try {
+    // 1. Trending Now — Keep this based on live click data
+    const trendingBooks = await searchTrendingBooks(180);
     if (trendingBooks.length > 0) {
-      const bookIds = trendingBooks.map(b => b.id);
-      await saveFeaturedSection('Trending Now', bookIds);
+      await saveFeaturedSection('Trending Now', trendingBooks.map(b => b.id));
       results.push({ title: 'Trending Now', books: trendingBooks });
     }
 
-    // [DISABLED] All other sections relied on Google Books API
-    // To re-enable, uncomment the Google API calls and the category loop below:
-    //
-    // const categories = [
-    //   { name: 'Just Announced', query: 'subject:fantasy', orderBy: 'newest' },
-    //   { name: 'Self Improvement', query: 'subject:"Self-Help"' },
-    //   { name: 'Science Fiction', query: 'subject:"Science Fiction"' },
-    //   { name: 'Mystery & Thriller', query: 'subject:"Thriller"' },
-    //   { name: 'Historical Fiction', query: 'subject:"Historical Fiction"' },
-    //   { name: 'Fantasy Epics', query: 'subject:"Fantasy"' },
-    // ];
-    //
-    // for (const cat of categories) {
-    //   let books = [];
-    //   if (cat.name === 'Just Announced') {
-    //     books = await AnnouncedBooks();
-    //   } else {
-    //     const pool = await searchGoogleBooks(cat.query, 15, cat.orderBy || 'relevance');
-    //     books = rankBooks(pool, 'hybrid', 15);
-    //   }
-    //   if (books.length > 0) {
-    //     try {
-    //       const toStore = books.filter(b => b.description);
-    //       const texts = toStore.map(b => `${b.title} by ${b.author}. ${b.description}`);
-    //       const embeddings = await generateBatchEmbeddings(texts);
-    //       const storeItems = toStore.map((book, i) => ({
-    //         book, embedding: embeddings[i]
-    //       })).filter(item => item.embedding);
-    //       const storedIds = await storeBooksBatch(storeItems);
-    //       if (storedIds.length > 0) {
-    //         await saveFeaturedSection(cat.name, storedIds);
-    //       }
-    //     } catch (err) {
-    //       console.error(`Failed to persist section ${cat.name}:`, err.message);
-    //     }
-    //     results.push({ title: cat.name, books });
-    //   }
-    //   await new Promise(r => setTimeout(r, 500));
-    // }
+    // 2. Define our rotating sections and their DB genre mappings
+    const rotationPlan = [
+      /* { name: 'Just Announced', type: 'recent' }, */
+      { name: 'Self Improvement', type: 'genre', genre: 'Self' },
+      { name: 'Science Fiction', type: 'genre', genre: 'Science Fiction' },
+      { name: 'Mystery & Thriller', type: 'genre', genre: 'Mystery' },
+      { name: 'Historical Fiction', type: 'genre', genre: 'Historical' },
+      { name: 'Fantasy Epics', type: 'genre', genre: 'Fantasy' }
+    ];
+
+    for (const section of rotationPlan) {
+      console.log(`Processing rotation: ${section.name}...`);
+      let books = [];
+
+      if (section.type === 'recent') {
+        books = await getRecentlyPublishedBooks(180);
+      } else {
+        books = await getLeastFeaturedBooksByGenre(section.genre, 180);
+      }
+
+      if (books.length > 0) {
+        const bookIds = books.map(b => b.id);
+        await saveFeaturedSection(section.name, bookIds);
+        results.push({ title: section.name, books });
+        console.log(`✅ ${section.name} updated with ${books.length} rotating books.`);
+      }
+
+      // Small pause to keep system resources relaxed
+      await new Promise(r => setTimeout(r, 100));
+    }
+
+  } catch (err) {
+    console.error('Background refresh failed:', err.message);
   }
 
-  console.log(`Scheduler: Background refresh complete. ${results.length} sections updated.`);
+  console.log(`--- REFRESH COMPLETE: ${results.length} SECTIONS ROTATED ---`);
   return results;
 }
 

@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS books (
   published_date TEXT,
   info_link TEXT,
   ratings_count INT DEFAULT 0,
-  embedding vector(1536),
+  embeddings vector(1536),
   average_rating FLOAT DEFAULT 0,
   clicks INT DEFAULT 0,
   last_clicked_at TIMESTAMPTZ DEFAULT NOW(),
@@ -38,8 +38,12 @@ CREATE TABLE IF NOT EXISTS featured_sections (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- For small datasets, use HNSW index instead (works with any number of rows)
-CREATE INDEX IF NOT EXISTS books_embedding_idx ON books USING hnsw (embedding vector_cosine_ops);
+-- Optimized HNSW (Hierarchical Navigable Small World) index for scalability (100k+ books)
+-- M (24): Max connections per node, improves recall for high-dimensional vectors (OpenAI = 1536)
+-- ef_construction (100): Build-time queue size for graph precision.
+CREATE INDEX IF NOT EXISTS books_embeddings_idx ON books 
+USING hnsw (embeddings vector_cosine_ops) 
+WITH (m = 24, ef_construction = 100);
 
 -- ==========================================
 -- FUZZY SEARCH & RAG OPTIMIZATIONS
@@ -56,7 +60,9 @@ CREATE INDEX IF NOT EXISTS books_author_trgm_idx ON books USING GIN (author gin_
 CREATE TABLE IF NOT EXISTS search_cache (
   id SERIAL PRIMARY KEY,
   search_query TEXT UNIQUE NOT NULL,
-  embedding vector(1536) NOT NULL,
+  embeddings vector(1536) NOT NULL,
+  top_result_ids TEXT[],
+  explanations JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   last_used_at TIMESTAMPTZ DEFAULT NOW(),
   usage_count INT DEFAULT 1

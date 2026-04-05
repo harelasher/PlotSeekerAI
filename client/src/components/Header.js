@@ -1,3 +1,5 @@
+import logo from '../logo.png';
+
 /**
  * Header component — top bar with logo, Browse, Categories
  */
@@ -6,7 +8,7 @@ export function renderHeader(onLogoClick, onBrowseClick, onCategoryClick) {
   header.className = 'header';
 
   const categories = [
-    'Trending Now', 'Just Announced', 'Self Improvement', 
+    'Trending Now', /* 'Just Announced', */ 'Self Improvement', 
     'Science Fiction', 'Mystery & Thriller', 'Historical Fiction', 'Fantasy Epics'
   ];
 
@@ -14,7 +16,7 @@ export function renderHeader(onLogoClick, onBrowseClick, onCategoryClick) {
 
   header.innerHTML = `
     <div class="header-logo" id="header-logo">
-      <div class="header-logo-icon">P</div>
+      <img src="${logo}" alt="PlotSeekerAI Logo" class="header-logo-icon" />
       <span class="header-logo-text">PlotSeekerAI</span>
     </div>
     <nav class="header-nav">

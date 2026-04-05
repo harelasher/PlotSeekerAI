@@ -5,6 +5,8 @@ const cors = require('cors');
 const searchRoutes = require('./routes/search');
 const { initScheduler } = require('./services/scheduler');
 
+const { initDatabase } = require('./services/database');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -26,8 +28,17 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error', message: err.message });
 });
 
-app.listen(PORT, () => {
-  console.log(`PlotSeekerAI server running on port ${PORT}`);
-  // Start the background refresh scheduler
-  initScheduler();
-});
+async function startServer() {
+  // 1. Initialize database first
+  await initDatabase();
+
+  // 2. Start listening on all interfaces to ensure cross-platform connectivity
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`PlotSeekerAI server running on port ${PORT}`);
+
+    // 3. Start the background refresh scheduler AFTER server is up and DB is ready
+    initScheduler();
+  });
+}
+
+startServer();
