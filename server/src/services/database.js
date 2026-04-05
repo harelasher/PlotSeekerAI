@@ -166,8 +166,8 @@ async function hybridSearchBooks(embedding, query, limit = 15) {
   const scoreById = new Map(boostedResults.map(r => [r.id, r.score]));
 
   const detailResult = await pool.query(
-    `SELECT id, title, author, description, cover_image, info_link,
-            average_rating, ratings_count, published_date, genres, page_count
+    `SELECT id, title, author, description, cover_image,
+            average_rating, published_date, genres, page_count
      FROM books WHERE id = ANY($1)`,
     [idList]
   );
@@ -180,9 +180,7 @@ async function hybridSearchBooks(embedding, query, limit = 15) {
       author: row.author,
       description: row.description,
       coverImage: row.cover_image,
-      infoLink: row.info_link,
       averageRating: row.average_rating,
-      ratingsCount: row.ratings_count,
       publishedDate: row.published_date,
       categories: row.genres || [],
       pageCount: row.page_count,
@@ -206,8 +204,8 @@ async function storeBook(book, embedding) {
   try {
     const dbId = book.isbn || book.id;
     const result = await pool.query(
-      `INSERT INTO books (id, title, author, description, cover_image, info_link, embeddings, average_rating, ratings_count, published_date, genres, page_count)
-       VALUES ($1, $2, $3, $4, $5, $6, $7::vector, $8, $9, $10, $11, $12)
+      `INSERT INTO books (id, title, author, description, cover_image, embeddings, average_rating, published_date, genres, page_count)
+       VALUES ($1, $2, $3, $4, $5, $6::vector, $7, $8, $9, $10)
        ON CONFLICT (id) DO UPDATE SET
          title = EXCLUDED.title,
          author = EXCLUDED.author,
@@ -215,13 +213,12 @@ async function storeBook(book, embedding) {
          cover_image = EXCLUDED.cover_image,
          embeddings = EXCLUDED.embeddings,
          average_rating = EXCLUDED.average_rating,
-         ratings_count = EXCLUDED.ratings_count,
          published_date = EXCLUDED.published_date,
          genres = EXCLUDED.genres,
          page_count = EXCLUDED.page_count
        RETURNING id`,
-      [dbId, book.title, book.author, book.description, book.coverImage, book.infoLink,
-        `[${embedding.join(',')}]`, book.averageRating || 0, book.ratingsCount || 0,
+      [dbId, book.title, book.author, book.description, book.coverImage,
+        `[${embedding.join(',')}]`, book.averageRating || 0,
         book.publishedDate || null, book.categories || [], book.pageCount || null]
     );
     return result.rows[0]?.id;
@@ -266,7 +263,7 @@ async function searchTrendingBooks(limit = 15, offset = 0) {
   if (!dbAvailable) return [];
   try {
     const result = await pool.query(
-      `SELECT id, title, author, description, cover_image, info_link, average_rating, ratings_count, published_date, genres, page_count
+      `SELECT id, title, author, description, cover_image, average_rating, published_date, genres, page_count
        FROM books
        ORDER BY clicks DESC, last_clicked_at DESC
        LIMIT $1 OFFSET $2`,
@@ -278,9 +275,7 @@ async function searchTrendingBooks(limit = 15, offset = 0) {
       author: row.author,
       description: row.description,
       coverImage: row.cover_image,
-      infoLink: row.info_link,
       averageRating: row.average_rating,
-      ratingsCount: row.ratings_count,
       publishedDate: row.published_date,
       categories: row.genres || [],
       pageCount: row.page_count
@@ -298,7 +293,7 @@ async function searchTrendingBooksByGenre(genre, limit = 30, offset = 0) {
   if (!dbAvailable) return [];
   try {
     const result = await pool.query(
-      `SELECT id, title, author, description, cover_image, info_link, average_rating, ratings_count, published_date, genres, page_count
+      `SELECT id, title, author, description, cover_image, average_rating, published_date, genres, page_count
        FROM books
        WHERE EXISTS (SELECT 1 FROM unnest(genres) g WHERE g ILIKE '%' || $1 || '%')
        ORDER BY clicks DESC, last_clicked_at DESC
@@ -311,9 +306,7 @@ async function searchTrendingBooksByGenre(genre, limit = 30, offset = 0) {
       author: row.author,
       description: row.description,
       coverImage: row.cover_image,
-      infoLink: row.info_link,
       averageRating: row.average_rating,
-      ratingsCount: row.ratings_count,
       publishedDate: row.published_date,
       categories: row.genres || [],
       pageCount: row.page_count
@@ -332,7 +325,7 @@ async function getLeastFeaturedBooksByGenre(genre, limit = 15) {
   if (!dbAvailable) return [];
   try {
     const result = await pool.query(
-      `SELECT id, title, author, description, cover_image, info_link, average_rating, ratings_count, published_date, genres, page_count
+      `SELECT id, title, author, description, cover_image, average_rating, published_date, genres, page_count
        FROM books
        WHERE EXISTS (SELECT 1 FROM unnest(genres) g WHERE g ILIKE '%' || $1 || '%')
        ORDER BY featured_count ASC, RANDOM()
@@ -345,9 +338,7 @@ async function getLeastFeaturedBooksByGenre(genre, limit = 15) {
       author: row.author,
       description: row.description,
       coverImage: row.cover_image,
-      infoLink: row.info_link,
       averageRating: row.average_rating,
-      ratingsCount: row.ratings_count,
       publishedDate: row.published_date,
       categories: row.genres || [],
       pageCount: row.page_count
@@ -366,7 +357,7 @@ async function getRecentlyPublishedBooks(limit = 15) {
   if (!dbAvailable) return [];
   try {
     const result = await pool.query(
-      `SELECT id, title, author, description, cover_image, info_link, average_rating, ratings_count, published_date, genres, page_count
+      `SELECT id, title, author, description, cover_image, average_rating, published_date, genres, page_count
        FROM books
        WHERE published_date IS NOT NULL
        ORDER BY published_date DESC, featured_count ASC, RANDOM()
@@ -379,9 +370,7 @@ async function getRecentlyPublishedBooks(limit = 15) {
       author: row.author,
       description: row.description,
       coverImage: row.cover_image,
-      infoLink: row.info_link,
       averageRating: row.average_rating,
-      ratingsCount: row.ratings_count,
       publishedDate: row.published_date,
       categories: row.genres || [],
       pageCount: row.page_count
@@ -400,7 +389,7 @@ async function getBookById(id) {
 
   try {
     const result = await pool.query(
-      'SELECT id, title, author, description, cover_image, info_link, average_rating, ratings_count, published_date, genres, page_count FROM books WHERE id = $1',
+      'SELECT id, title, author, description, cover_image, average_rating, published_date, genres, page_count FROM books WHERE id = $1',
       [id]
     );
     if (result.rows.length === 0) return null;
@@ -411,9 +400,7 @@ async function getBookById(id) {
       author: row.author,
       description: row.description,
       coverImage: row.cover_image,
-      infoLink: row.info_link,
       averageRating: row.average_rating,
-      ratingsCount: row.ratings_count,
       publishedDate: row.published_date,
       categories: row.genres || [],
       pageCount: row.page_count
@@ -457,7 +444,7 @@ async function getPersistedFeaturedSections(limitPerSection = 15) {
         const idsToFetch = section.book_ids.slice(0, limitPerSection);
 
         const booksResult = await pool.query(
-          'SELECT id, title, author, description, cover_image, info_link, average_rating, ratings_count, published_date, genres, page_count FROM books WHERE id = ANY($1)',
+          'SELECT id, title, author, description, cover_image, average_rating, published_date, genres, page_count FROM books WHERE id = ANY($1)',
           [idsToFetch]
         );
 
@@ -468,9 +455,7 @@ async function getPersistedFeaturedSections(limitPerSection = 15) {
           author: row.author,
           description: row.description,
           coverImage: row.cover_image,
-          infoLink: row.info_link,
           averageRating: row.average_rating,
-          ratingsCount: row.ratings_count,
           publishedDate: row.published_date,
           categories: row.genres || [],
           pageCount: row.page_count
@@ -509,7 +494,7 @@ async function getFeaturedSectionBooks(sectionName, limit = 30, offset = 0) {
     if (idsToFetch.length === 0) return [];
 
     const booksResult = await pool.query(
-      'SELECT id, title, author, description, cover_image, info_link, average_rating, ratings_count, published_date, genres, page_count FROM books WHERE id = ANY($1)',
+      'SELECT id, title, author, description, cover_image, average_rating, published_date, genres, page_count FROM books WHERE id = ANY($1)',
       [idsToFetch]
     );
 
@@ -520,9 +505,7 @@ async function getFeaturedSectionBooks(sectionName, limit = 30, offset = 0) {
       author: row.author,
       description: row.description,
       coverImage: row.cover_image,
-      infoLink: row.info_link,
       averageRating: row.average_rating,
-      ratingsCount: row.ratings_count,
       publishedDate: row.published_date,
       categories: row.genres || [],
       pageCount: row.page_count
@@ -623,7 +606,7 @@ async function getBooksByIds(ids) {
   if (!dbAvailable || !ids || ids.length === 0) return [];
   try {
     const result = await pool.query(
-      'SELECT id, title, author, description, cover_image, info_link, average_rating, ratings_count, published_date, genres, page_count, embeddings FROM books WHERE id = ANY($1)',
+      'SELECT id, title, author, description, cover_image, average_rating, published_date, genres, page_count, embeddings FROM books WHERE id = ANY($1)',
       [ids]
     );
     return result.rows.map(row => ({
@@ -632,9 +615,7 @@ async function getBooksByIds(ids) {
       author: row.author,
       description: row.description,
       coverImage: row.cover_image,
-      infoLink: row.info_link,
       averageRating: row.average_rating,
-      ratingsCount: row.ratings_count,
       publishedDate: row.published_date,
       categories: row.genres || [],
       pageCount: row.page_count,
