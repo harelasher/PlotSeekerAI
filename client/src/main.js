@@ -1,6 +1,6 @@
 import './style.css';
 import { renderHeader } from './components/Header.js';
-import { renderSearchBar, setSearchLoading, clearSearchInput } from './components/SearchBar.js';
+import { renderSearchBar, setSearchLoading, clearSearchInput, setSearchCooldown } from './components/SearchBar.js';
 import { renderBookSections, renderBookSectionsSkeleton } from './components/BookGrid.js';
 import { renderResultCard } from './components/BookCard.js';
 import { renderBookDetail } from './components/BookDetail.js';
@@ -248,7 +248,11 @@ async function handleSearch(query, skipHistory = false) {
     console.log(`Search cooldown active. Wait ${Math.ceil((3000 - (now - state.lastSearchTime)) / 1000)}s.`);
     return;
   }
-  if (!skipHistory) state.lastSearchTime = now;
+  if (!skipHistory) {
+    state.lastSearchTime = now;
+    setSearchCooldown(true);
+    setTimeout(() => setSearchCooldown(false), 3000);
+  }
 
   window.scrollTo(0, 0);
   state.view = 'search';
@@ -363,6 +367,22 @@ async function loadCategoryBooks(category, append = false) {
     state.isFetchingMore = false;
     if (!append) await render();
   }
+}
+
+/** 
+ * Clear the search input.
+ */
+export function clearSearchInput() {
+  const input = document.querySelector('#search-input');
+  if (input) input.value = '';
+}
+
+/**
+ * Visual Cooldown indicator for the search button.
+ */
+export function setSearchCooldown(isCooldown) {
+  const btn = document.querySelector('#search-submit');
+  if (btn) btn.classList.toggle('on-cooldown', isCooldown);
 }
 
 function appendBooksToUI(newBooks) {

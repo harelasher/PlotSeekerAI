@@ -934,6 +934,15 @@ body {
   pointer-events: none;
 }
 
+/* Cooldown visual state */
+.search-bar-submit.on-cooldown {
+  filter: grayscale(1) opacity(0.4);
+  transform: scale(0.85);
+  pointer-events: none;
+  cursor: not-allowed;
+  transition: all var(--transition-base);
+}
+
 /* --- Book Detail --- */
 .book-detail-backdrop {
   position: fixed;
