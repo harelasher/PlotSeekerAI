@@ -369,22 +369,6 @@ async function loadCategoryBooks(category, append = false) {
   }
 }
 
-/** 
- * Clear the search input.
- */
-export function clearSearchInput() {
-  const input = document.querySelector('#search-input');
-  if (input) input.value = '';
-}
-
-/**
- * Visual Cooldown indicator for the search button.
- */
-export function setSearchCooldown(isCooldown) {
-  const btn = document.querySelector('#search-submit');
-  if (btn) btn.classList.toggle('on-cooldown', isCooldown);
-}
-
 function appendBooksToUI(newBooks) {
   const grid = document.querySelector('.search-results-grid');
   if (!grid) return;
