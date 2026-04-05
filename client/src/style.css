@@ -1379,6 +1379,29 @@ body {
   }
 }
 
+/* --- Global Mobile/Compact Scaling --- */
+@media (max-width: 576px) {
+  html {
+    font-size: 14px; /* Scales down every rem-based unit consistently */
+  }
+
+  /* Shrink hero and spacing further for tiny screens */
+  .hero-title {
+    font-size: 1.5rem;
+  }
+  
+  .hero {
+    padding-top: var(--space-xl);
+  }
+
+  .search-bar textarea::placeholder {
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 /* --- Footer --- */
 .footer {
   background: rgba(13, 17, 23, 0.8);
