@@ -62,14 +62,16 @@ export function renderResultCard(book, { onLike, onDislike, onClick, isLegendary
       ${isLegendary ? '<div class="legendary-badge">Legendary Discovery</div>' : ''}
     </div>
     <div class="result-card-body">
-      <div class="match-score-container">
-        <div class="match-bar" data-levels="${levels}">
-          <div class="match-bar-segment"></div>
-          <div class="match-bar-segment"></div>
-          <div class="match-bar-segment"></div>
+      ${book.similarity ? `
+        <div class="match-score-container">
+          <div class="match-bar" data-levels="${levels}">
+            <div class="match-bar-segment"></div>
+            <div class="match-bar-segment"></div>
+            <div class="match-bar-segment"></div>
+          </div>
+          <span class="match-label">${matchLabel}</span>
         </div>
-        <span class="match-label">${matchLabel}</span>
-      </div>
+      ` : ''}
       <div class="result-card-title">${book.title}</div>
       <div class="result-card-author">by ${book.author || 'Unknown'}</div>
       <div class="result-card-summary">${book.summary || ''}</div>
