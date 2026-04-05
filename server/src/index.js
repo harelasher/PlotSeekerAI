@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: ['https://plotseekerai-1.onrender.com', 'http://localhost:5173'], // Production + Local Client 
+  origin: ['https://plotseekerai.com', 'https://www.plotseekerai.com', 'https://plotseekerai-1.onrender.com', 'http://localhost:5173'], 
   methods: ['GET', 'POST'],
   credentials: true
 }));
