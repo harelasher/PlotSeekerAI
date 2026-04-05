@@ -1,6 +1,6 @@
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:5000/api'
-  : 'https://plotseeker-api.onrender.com/api'; // REPLACEME: Use your actual Render backend URL here!
+  : 'https://plotseekerai.onrender.com/api'; // Live Render Server URL!
 const detailsCache = new Map(); // Simple idempotency cache for book details
 
 /**
