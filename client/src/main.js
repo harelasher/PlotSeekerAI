@@ -26,6 +26,7 @@ const state = {
   browseOffset: 0,        // current pagination offset for browse/category
   listScrollPos: 0,
   isRestoring: false,     // true when navigating back — suppresses animations & AI calls
+  lastSearchTime: 0,      // last manual search timestamp for cooldown
 };
 
 const app = document.getElementById('app');
@@ -241,6 +242,14 @@ async function navigateCategory(category, skipHistory = false, restoring = false
 }
 
 async function handleSearch(query, skipHistory = false) {
+  const now = Date.now();
+  if (!skipHistory && (now - state.lastSearchTime < 3000)) {
+    // Show a visual alert/notice if we wanted to, but silent ignore/logging is better for UX
+    console.log(`Search cooldown active. Wait ${Math.ceil((3000 - (now - state.lastSearchTime)) / 1000)}s.`);
+    return;
+  }
+  if (!skipHistory) state.lastSearchTime = now;
+
   window.scrollTo(0, 0);
   state.view = 'search';
   state.searchQuery = query;
