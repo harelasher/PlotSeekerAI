@@ -1,48 +1,60 @@
-# 🗺️ PlotSeekerAI Roadmap
+# 🚀 PlotSeekerAI: The Roadmap to 100K Books
 
-Use this file to track the evolution of PlotSeekerAI. Jot down new ideas, track annoying bugs, and keep a history of what we've accomplished.
+This document tracks the evolution of the **PlotSeekerAI** discovery engine. It focuses on the transition from a "Search Tool" to a **"Premium Book Discovery Platform."**
 
----
 
-## 🚀🐛 Feature Ideas & Known Bugs and Fixes
 
-*Current issues needing attention.*
 
-- [ ] **Trending now:** make sure this section works; it's based on popularity and rating_count, doesn't need to be updated every refresh, daily is fine.
-- [ ] **Just announced:** those books needs to be published within the maximum of 1 month. also will show first based on populariy. doesn't need to be updated every refresh, daily is fine.
-- [ ] **header**:
-
-  1. Categories: when hovering over it and trying to get to a category, the slide down might go away very quickly - can't disappear so the user can click on a suggestedcategory. also, making the design of the suggested categories look like the category. for ex: the trending now category can have fire emojis on the side, and the science fiction's border be the color purple and with alien spaceships.
-  2. make the p of logo's website centered
-  3. when scrolling down, add a little transition that makes the header thinner. and when scrolling all the way back up make it go larger until reaching the starting size.
-- [ ] **Search box**:
-
-1. make the little icon on the left aligned and centered.
-2. when typing alot of words the box need to have a transition that expends the box a bit so you can see 3 sentences, just like the chatGPT text box.
-
-* [ ] Google Books API error: Request failed with status code 429
-* [ ] when searching in the search box a book, it needs to search first in the database if there is a relevent book so it wont just search in the api over and over. however, if there aren't any results that satisfies the user requests, it should ask for books that are relevent from the user request from the api and save it in the database so there won't be any need to search in the api again.
-* [ ] inside the book design: make it look better, make the buy on amazon button work
+connection errors!!!!!!
 
 ---
 
-## 🧠 Project Thoughts & Logic
+## ✅ Phase 1: High-Performance Search Architecture
 
-*Architectural notes and brainstorms.*
+*Goal: Ensure the AI can find anything instantly without crashing the database.*
 
-- **Seeded JIT Strategy**: Our current strategy of seeding top books and harvesting new ones during search is working well. Should we increase the initial seed to 2,000 books?
-- **Vector Tuning**: Currently using `vector_cosine_ops`. Should we experiment with Manhattan or Euclidean distance to see if relevance changes?
-- **Just Announced Ranking**: The "Popularity" sort in the weekly code is great, but maybe we should prioritize "Release Date" strictly for the first 5 slots?
+- [X] **Hybrid Vector Search**: Combined PGVector (Semantic) with pg_trgm (Fuzzy) and FTS (Keyword) for 3-layered accuracy.
+- [X] **JIT (Just-In-Time) Expansion**: Implemented "Background enrichment" to save books from Google Books API to our private DB on-the-fly.
+- [X] **Semantic Hot-Reload (Cache)**: Queries are cached with 100% of their result IDs to skip expensive vector math for repeat visits.
+- [X] **Concurrency & Safety**: All DB operations routed through the `database.js` service layer (fixed the `pool is not defined` errors).
+- [ ] **Vector Scaling (HNSW)**: Implement HNSW indexing for the `embeddings` column to maintain speed as the library hits 100,000+ books.
 
 ---
 
-## ✅ Completed Tasks
+## ✅ Phase 2: The Pro UI & Mobile Experience
 
-*A history of what we've built.*
+*Goal: Make the site feel like a premium, native mobile app ($30/mo vibe).*
 
-- [X] Initial Hybrid Search (Semantic + Popularity) - **2026-03-24**
-- [X] Seeded JIT Architecture implementation - **2026-03-28**
-- [X] Date-accurate "Just Announced" Weekly Cache - **2026-03-28**
-- [X] User-driven "Trending Now" Click Tracking - **2026-03-28**
-- [X] Advanced 800-Book Seed Script - **2026-03-28**
-- [X] 1-Decimal Star Rating Formatting - **2026-03-28**
+- [X] **Floating Branding**: Replaced placeholder text with the actual `logo.png` and updated the browser favicon.
+- [X] **Centered Mobile "Hero"**: Refactored the Book Detail page to center the Title, Author, Stars, and Cover on phones (resolved the "left-aligned" gap).
+- [X] **Search Box Overhaul**: Upgraded the standard input to a **Smart Textarea** (Grows as you type) with a centered layout and a Filter toggle.
+- [X] **Glow & Animation Polish**: Fixed the "Gold Glow" clipping on cards and boosted the infinite scroll entrance speed (Batch-aware animations).
+- [X] **Symmetric Grid Clamping**: Strict line-clamping on titles (2 lines) and summaries (3 lines) for a perfectly aligned category grid.
+- [X] **State Persistence (Scroll Snap)**: Implemented History Snapshots. When you click **Back** from a book, the app instantly restores your entire scrolled list and scroll position.
+
+---
+
+## 🛠️ Phase 3: Expansion & Discovery Features
+
+*Goal: Advanced features to keep users exploring.*
+
+- [ ] **Filter Logic**: Connect the "Filter" button in the search bar to actual backend queries (e.g., Year, Genre Lock, Min-Rating).
+- [ ] **OpenLibrary Metadata Fallback**: Automatically fetch missing `page_count` or `publisher` data from OpenLibrary if Google Books is incomplete.
+- [ ] **Search Auto-Complete**: Implement a prefix-based title and author suggest API for the search box.
+- [ ] **Image Proxy Resilience**: Build a service to handle broken external image links and serve consistent "Cover Missing" assets.
+- [ ] **Like/Dislike Personalization**: Implement a feedback system to refine semantic search results based on user preferences.
+
+---
+
+## 💡 Reminders & Future Strategy
+
+*Critical notes for upcoming logic implementations.*
+
+- [ ] **The "Filter Logic" PUSH**: The UI button exists, but we need to connect it to the Backend. The goal is to allow "Hard Filtering" (e.g., Year > 2000, Rating > 4.0) and "Mood Filtering" (e.g., Scarier, Faster Paced) by using our vector neighborhood math.
+- [ ] **"Just Announced" Freshness**: We need to refine the `getFeaturedBooks` logic to strictly filter by `publishedDate` (within the last 6 months) to ensure this section lives up to its name as the library scales.
+
+---
+
+> [!NOTE]
+> **Next Recommended Task**:
+> Now that the UI is polished and scroll-restoration is working, we should implement the **Search Auto-Complete** to help users discover titles even faster as they type.

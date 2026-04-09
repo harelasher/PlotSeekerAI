@@ -6,11 +6,20 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "seed": "node src/scripts/seed.js"
+    "seed": "node src/scripts/seed.js",
+    "import:ol": "node src/scripts/import_open_library.js",
+    "import:ol-full": "node src/scripts/advanced_import_ol.js",
+    "import:ol-parallel": "node src/scripts/advanced_import_ol_parallel.js",
+    "import:ol-enrich": "node src/scripts/enrich_covers.js",
+    "import:ol-swap-google": "node src/scripts/update_covers_google.js",
+    "import:ol-verify": "node src/scripts/fetch_verified_covers.js",
+    "import:ol-download": "node src/scripts/download_ol_data.js"
   },
   "dependencies": {
     "axios": "^1.7.0",
     "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
+    "csv-writer": "^1.6.0",
     "dotenv": "^16.4.0",
     "express": "^4.21.0",
     "openai": "^4.70.0",
